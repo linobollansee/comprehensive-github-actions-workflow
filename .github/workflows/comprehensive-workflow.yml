@@ -1,0 +1,1381 @@
+# ============================================================================
+# COMPREHENSIVE GITHUB ACTIONS WORKFLOW
+# ============================================================================
+# This workflow demonstrates EVERY available GitHub Actions syntax feature
+# with detailed explanations for each element.
+# ============================================================================
+
+# WORKFLOW NAME
+# The name displayed in the GitHub Actions UI
+name: "Complete GitHub Actions Syntax Demonstration"
+
+# RUN NAME (Dynamic)
+# Customizes the name of workflow runs shown in the UI
+# Can use expressions and contexts
+run-name: "Run #${{ github.run_number }} by @${{ github.actor }} on ${{ github.ref_name }}"
+
+# ============================================================================
+# TRIGGERS (ON)
+# ============================================================================
+# Defines all the events that can trigger this workflow
+on:
+  # PUSH EVENT
+  # Triggers when commits are pushed to specified branches
+  push:
+    branches:
+      - main
+      - master
+      - 'releases/**'           # Matches releases/v1, releases/v2/hotfix, etc.
+      - 'feature/*'              # Matches feature/auth, feature/api, etc.
+      - '!refs/heads/temp-*'     # Excludes branches starting with temp-
+    branches-ignore:
+      - 'wip/**'                 # Alternative way to exclude branches
+    tags:
+      - 'v*'                     # Matches v1, v1.0, v1.0.0, etc.
+      - 'release-*'
+    tags-ignore:
+      - 'beta-*'
+    paths:
+      - '**.js'                  # Any JavaScript file in any directory
+      - 'src/**'                 # Any file under src/
+      - 'docs/*.md'              # Markdown files in docs/ directory
+      - '!**/*.log'              # Excludes all log files
+    paths-ignore:
+      - 'README.md'              # Alternative way to exclude paths
+      - 'docs/internal/**'
+
+  # PULL REQUEST EVENT
+  # Triggers on pull request activity
+  pull_request:
+    types:
+      - opened                   # PR is created
+      - synchronize              # New commits pushed to PR
+      - reopened                 # Previously closed PR is reopened
+      - edited                   # PR title or body is edited
+      - assigned                 # PR is assigned to someone
+      - unassigned               # PR assignee is removed
+      - labeled                  # Label is added to PR
+      - unlabeled                # Label is removed from PR
+      - ready_for_review         # PR is marked as ready for review
+      - review_requested         # Review is requested
+      - review_request_removed   # Review request is removed
+      - converted_to_draft       # PR is converted to draft
+      - locked                   # PR conversation is locked
+      - unlocked                 # PR conversation is unlocked
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/**'
+      - 'tests/**'
+
+  # PULL REQUEST TARGET EVENT
+  # Runs in the context of the PR's base repository (safer for forks)
+  pull_request_target:
+    types: [opened, synchronize]
+    branches: [main]
+
+  # PULL REQUEST REVIEW EVENT
+  pull_request_review:
+    types:
+      - submitted                # Review is submitted
+      - edited                   # Review is edited
+      - dismissed                # Review is dismissed
+
+  # PULL REQUEST REVIEW COMMENT
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+
+  # ISSUE EVENT
+  issues:
+    types:
+      - opened
+      - edited
+      - deleted
+      - transferred
+      - pinned
+      - unpinned
+      - closed
+      - reopened
+      - assigned
+      - unassigned
+      - labeled
+      - unlabeled
+      - locked
+      - unlocked
+      - milestoned
+      - demilestoned
+
+  # ISSUE COMMENT EVENT
+  issue_comment:
+    types: [created, edited, deleted]
+
+  # SCHEDULE EVENT (CRON)
+  # Runs workflow on a schedule using POSIX cron syntax
+  schedule:
+    - cron: '0 0 * * *'          # Daily at midnight UTC
+    - cron: '*/15 * * * *'       # Every 15 minutes
+    - cron: '0 */4 * * *'        # Every 4 hours
+    - cron: '0 9 * * 1-5'        # 9 AM UTC on weekdays
+    - cron: '30 5,17 * * *'      # 5:30 AM and 5:30 PM UTC daily
+
+  # WORKFLOW DISPATCH (Manual Trigger)
+  # Allows manual workflow execution from GitHub UI or API
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+        default: 'development'
+      
+      version:
+        description: 'Version number to deploy'
+        required: true
+        type: string
+        default: '1.0.0'
+      
+      debug_enabled:
+        description: 'Enable debug mode'
+        required: false
+        type: boolean
+        default: false
+      
+      log_level:
+        description: 'Logging level'
+        required: false
+        type: choice
+        options:
+          - debug
+          - info
+          - warning
+          - error
+        default: 'info'
+      
+      parallel_jobs:
+        description: 'Number of parallel jobs'
+        required: false
+        type: number
+        default: 4
+
+  # REPOSITORY DISPATCH (External API Trigger)
+  # Triggered by external webhook or API call
+  repository_dispatch:
+    types:
+      - webhook
+      - external-trigger
+      - custom-event
+
+  # WORKFLOW CALL (Reusable Workflow)
+  # Allows this workflow to be called from other workflows
+  workflow_call:
+    inputs:
+      config-path:
+        description: 'Path to configuration file'
+        required: true
+        type: string
+      
+      deploy-target:
+        description: 'Deployment target'
+        required: false
+        type: string
+        default: 'staging'
+      
+      use-cache:
+        description: 'Whether to use caching'
+        required: false
+        type: boolean
+        default: true
+    
+    secrets:
+      api-key:
+        description: 'API key for deployment'
+        required: true
+      
+      ssh-key:
+        description: 'SSH key for server access'
+        required: false
+    
+    outputs:
+      build-id:
+        description: 'The build identifier'
+        value: ${{ jobs.build.outputs.build-id }}
+      
+      deploy-url:
+        description: 'The deployment URL'
+        value: ${{ jobs.deploy.outputs.url }}
+
+  # WORKFLOW RUN (Triggered by other workflow completion)
+  workflow_run:
+    workflows: ["CI Pipeline", "Build"]
+    types:
+      - completed
+      - requested
+      - in_progress
+    branches: [main, develop]
+
+  # RELEASE EVENT
+  release:
+    types:
+      - published
+      - unpublished
+      - created
+      - edited
+      - deleted
+      - prereleased
+      - released
+
+  # DEPLOYMENT EVENT
+  deployment:
+  
+  # DEPLOYMENT STATUS EVENT
+  deployment_status:
+
+  # STATUS EVENT (Commit status changes)
+  status:
+
+  # CHECK RUN EVENT
+  check_run:
+    types: [created, rerequested, completed, requested_action]
+
+  # CHECK SUITE EVENT
+  check_suite:
+    types: [completed, requested, rerequested]
+
+  # PAGE BUILD EVENT (GitHub Pages)
+  page_build:
+
+  # REGISTRY PACKAGE EVENT
+  registry_package:
+    types: [published, updated]
+
+  # WATCH EVENT (Repository starred)
+  watch:
+    types: [started]
+
+  # FORK EVENT
+  fork:
+
+  # GOLLUM EVENT (Wiki page created/updated)
+  gollum:
+
+  # CREATE EVENT (Branch or tag created)
+  create:
+
+  # DELETE EVENT (Branch or tag deleted)
+  delete:
+
+  # MEMBER EVENT (Collaborator added/removed)
+  member:
+    types: [added, removed, edited]
+
+  # MEMBERSHIP EVENT (Team membership changed)
+  membership:
+    types: [added, removed]
+
+  # PROJECT EVENT
+  project:
+    types: [created, closed, reopened, edited, deleted]
+
+  # PROJECT CARD EVENT
+  project_card:
+    types: [created, moved, converted, edited, deleted]
+
+  # PROJECT COLUMN EVENT
+  project_column:
+    types: [created, updated, moved, deleted]
+
+  # PUBLIC EVENT (Repository made public)
+  public:
+
+  # DISCUSSION EVENT
+  discussion:
+    types: [created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered]
+
+  # DISCUSSION COMMENT EVENT
+  discussion_comment:
+    types: [created, edited, deleted]
+
+  # MILESTONE EVENT
+  milestone:
+    types: [created, closed, opened, edited, deleted]
+
+  # LABEL EVENT
+  label:
+    types: [created, edited, deleted]
+
+# ============================================================================
+# PERMISSIONS
+# ============================================================================
+# Sets permissions for GITHUB_TOKEN at workflow level
+# Can be overridden at job level
+permissions:
+  actions: write              # Manage workflow runs and artifacts
+  checks: write               # Create and update check runs
+  contents: write             # Read and write repository contents
+  deployments: write          # Create and update deployments
+  discussions: write          # Manage discussions
+  id-token: write             # Fetch OpenID Connect (OIDC) token
+  issues: write               # Manage issues
+  packages: write             # Manage packages
+  pages: write                # Manage GitHub Pages
+  pull-requests: write        # Manage pull requests
+  repository-projects: write  # Manage projects
+  security-events: write      # Manage security events (code scanning)
+  statuses: write             # Create commit statuses
+
+# ============================================================================
+# ENVIRONMENT VARIABLES (Workflow Level)
+# ============================================================================
+# Available to all jobs and steps in the workflow
+env:
+  NODE_VERSION: '20.x'
+  PYTHON_VERSION: '3.11'
+  GO_VERSION: '1.21'
+  JAVA_VERSION: '17'
+  RUBY_VERSION: '3.2'
+  TIMEZONE: 'UTC'
+  CACHE_VERSION: 'v1'
+  GLOBAL_CONFIG: 'production'
+  API_ENDPOINT: 'https://api.example.com'
+  MAX_RETRIES: '3'
+  TIMEOUT_MINUTES: '30'
+
+# ============================================================================
+# DEFAULTS
+# ============================================================================
+# Default settings for run steps
+defaults:
+  run:
+    shell: bash                # Default shell for all run steps
+    working-directory: ./      # Default working directory
+
+# ============================================================================
+# CONCURRENCY
+# ============================================================================
+# Controls concurrent workflow runs
+concurrency:
+  # Only one workflow run at a time for the same branch
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel in-progress runs when new one is triggered
+  cancel-in-progress: true
+
+# ============================================================================
+# JOBS
+# ============================================================================
+# The main execution units of the workflow
+jobs:
+  
+  # ==========================================================================
+  # JOB 1: SETUP & VALIDATION
+  # ==========================================================================
+  setup:
+    # JOB NAME
+    name: "Setup and Validation 🚀"
+    
+    # JOB LEVEL PERMISSIONS (Override workflow permissions)
+    permissions:
+      contents: read
+      pull-requests: read
+    
+    # RUNNER SELECTION
+    # Specifies the type of machine to run the job on
+    runs-on: ubuntu-latest
+    
+    # Alternative runner specifications:
+    # runs-on: windows-latest
+    # runs-on: macos-latest
+    # runs-on: ubuntu-22.04
+    # runs-on: windows-2022
+    # runs-on: macos-12
+    # runs-on: [self-hosted, linux, x64]
+    # runs-on: ${{ matrix.os }}
+    
+    # JOB LEVEL ENVIRONMENT VARIABLES
+    env:
+      JOB_ENV: 'setup'
+      DEBUG: 'true'
+    
+    # JOB LEVEL DEFAULTS
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./setup
+    
+    # CONDITIONAL JOB EXECUTION
+    # Job runs only if condition is true
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+    
+    # JOB OUTPUTS
+    # Values that can be used by dependent jobs
+    outputs:
+      build-id: ${{ steps.generate-id.outputs.build-id }}
+      timestamp: ${{ steps.generate-id.outputs.timestamp }}
+      matrix-config: ${{ steps.setup-matrix.outputs.matrix }}
+      should-deploy: ${{ steps.check-deploy.outputs.deploy }}
+      cache-key: ${{ steps.cache-config.outputs.key }}
+    
+    # JOB TIMEOUT
+    # Maximum time job can run before being cancelled (default: 360 minutes)
+    timeout-minutes: 30
+    
+    # CONTINUE ON ERROR
+    # Workflow continues even if this job fails
+    continue-on-error: false
+    
+    # JOB CONTAINER
+    # Run job in a Docker container
+    container:
+      image: node:20-alpine
+      env:
+        CONTAINER_ENV: 'production'
+      ports:
+        - 80
+        - 443
+      volumes:
+        - my_docker_volume:/volume_mount
+      options: --cpus 2 --memory 4g --privileged
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    # SERVICE CONTAINERS
+    # Additional containers for databases, caches, etc.
+    services:
+      # PostgreSQL Database
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      # Redis Cache
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      # MongoDB
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password
+        ports:
+          - 27017:27017
+      
+      # Elasticsearch
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+        env:
+          discovery.type: single-node
+          ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+        ports:
+          - 9200:9200
+    
+    # STRATEGY (Matrix and Job Configuration)
+    strategy:
+      # MATRIX
+      # Run job multiple times with different configurations
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [16, 18, 20]
+        python-version: ['3.9', '3.10', '3.11']
+        include:
+          # Add specific combinations
+          - os: ubuntu-latest
+            node-version: 20
+            experimental: true
+          - os: windows-latest
+            node-version: 18
+            special-flag: '--legacy-peer-deps'
+        exclude:
+          # Exclude specific combinations
+          - os: macos-latest
+            node-version: 16
+      
+      # FAIL-FAST
+      # Stop all matrix jobs if one fails (default: true)
+      fail-fast: false
+      
+      # MAX-PARALLEL
+      # Maximum number of matrix jobs running simultaneously
+      max-parallel: 4
+    
+    # ==========================================================================
+    # STEPS
+    # ==========================================================================
+    steps:
+      
+      # STEP 1: Checkout Repository
+      - name: "📥 Checkout Repository"
+        # STEP ID (for referencing outputs)
+        id: checkout
+        
+        # ACTION USAGE
+        # Uses a pre-built action from GitHub Marketplace or repository
+        uses: actions/checkout@v4
+        
+        # ACTION INPUTS
+        with:
+          # Fetch all history for all branches and tags
+          fetch-depth: 0
+          # Fetch all submodules recursively
+          submodules: recursive
+          # Personal access token for checkout
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Checkout specific ref
+          ref: ${{ github.head_ref }}
+          # Repository to checkout
+          repository: ${{ github.repository }}
+          # Whether to persist credentials
+          persist-credentials: true
+          # Clean working directory
+          clean: true
+          # LFS support
+          lfs: true
+        
+        # STEP TIMEOUT
+        timeout-minutes: 5
+        
+        # CONTINUE ON ERROR (Step Level)
+        continue-on-error: false
+        
+        # CONDITIONAL STEP EXECUTION
+        if: success()
+      
+      # STEP 2: Environment Information
+      - name: "📊 Display Environment Information"
+        id: env-info
+        run: |
+          echo "============================================"
+          echo "GITHUB CONTEXT INFORMATION"
+          echo "============================================"
+          echo "Event Name: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Repository Owner: ${{ github.repository_owner }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Ref Name: ${{ github.ref_name }}"
+          echo "Ref Type: ${{ github.ref_type }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Triggering Actor: ${{ github.triggering_actor }}"
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Job: ${{ github.job }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Number: ${{ github.run_number }}"
+          echo "Run Attempt: ${{ github.run_attempt }}"
+          echo "Base Ref: ${{ github.base_ref }}"
+          echo "Head Ref: ${{ github.head_ref }}"
+          echo "============================================"
+          
+          # System information
+          echo "OS: $(uname -a)"
+          echo "Kernel: $(uname -r)"
+          echo "CPU: $(nproc) cores"
+          echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+          echo "Disk: $(df -h / | tail -1 | awk '{print $4}') free"
+        
+        # STEP ENVIRONMENT VARIABLES
+        env:
+          STEP_ENV: 'info-display'
+          CUSTOM_VAR: 'custom-value'
+        
+        # WORKING DIRECTORY (Step Level)
+        working-directory: ./
+        
+        # SHELL SELECTION (Step Level)
+        shell: bash
+      
+      # STEP 3: Generate Build ID
+      - name: "🔢 Generate Build ID and Timestamp"
+        id: generate-id
+        run: |
+          BUILD_ID="build-$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::8}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "Generated Build ID: $BUILD_ID"
+          echo "Timestamp: $TIMESTAMP"
+          
+          # SET STEP OUTPUTS
+          # Using new format (recommended)
+          echo "build-id=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          
+          # SET ENVIRONMENT VARIABLES (available in subsequent steps)
+          echo "BUILD_ID=${BUILD_ID}" >> $GITHUB_ENV
+          echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_ENV
+          
+          # ADD TO PATH
+          echo "/custom/bin" >> $GITHUB_PATH
+          
+          # ADD SYSTEM PATH (deprecated but shown for reference)
+          # echo "::add-path::/custom/bin"
+          
+          # STEP COMMANDS (Workflow Commands)
+          echo "::notice title=Build ID Generated::Build ID is ${BUILD_ID}"
+          echo "::warning::This is a warning message"
+          # echo "::error::This is an error message"
+          echo "::debug::This is a debug message"
+          
+          # GROUP OUTPUT
+          echo "::group::Detailed Information"
+          echo "SHA: ${GITHUB_SHA}"
+          echo "Ref: ${GITHUB_REF}"
+          echo "Actor: ${GITHUB_ACTOR}"
+          echo "::endgroup::"
+          
+          # MASK SECRET (prevents value from being logged)
+          SECRET_VALUE="super-secret-123"
+          echo "::add-mask::${SECRET_VALUE}"
+          echo "Secret is masked: ${SECRET_VALUE}"
+          
+          # STOP COMMANDS (temporarily disable processing)
+          STOP_TOKEN=$(uuidgen 2>/dev/null || echo "stop-${RANDOM}")
+          echo "::stop-commands::${STOP_TOKEN}"
+          echo "::error::This won't be processed as a command"
+          echo "::${STOP_TOKEN}::"
+        shell: bash
+      
+      # STEP 4: Setup Matrix Configuration
+      - name: "⚙️ Setup Matrix Configuration"
+        id: setup-matrix
+        run: |
+          MATRIX_JSON='{"include":[{"os":"ubuntu-latest","version":"1.0"},{"os":"windows-latest","version":"2.0"}]}'
+          echo "matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
+        if: always()
+      
+      # STEP 5: Check Deployment Condition
+      - name: "🔍 Check Deployment Condition"
+        id: check-deploy
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # STEP 6: Cache Configuration
+      - name: "💾 Setup Cache Configuration"
+        id: cache-config
+        run: |
+          CACHE_KEY="cache-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}"
+          echo "key=${CACHE_KEY}" >> $GITHUB_OUTPUT
+      
+      # STEP 7: Multiple Shell Examples
+      - name: "🐚 Bash Shell Example"
+        run: echo "Running in Bash"
+        shell: bash
+      
+      - name: "🐚 PowerShell Example"
+        run: Write-Output "Running in PowerShell"
+        shell: pwsh
+        if: runner.os == 'Windows'
+      
+      - name: "🐚 Python Shell Example"
+        run: |
+          import sys
+          import os
+          print(f"Python {sys.version}")
+          print(f"Platform: {sys.platform}")
+          print(f"GitHub SHA: {os.environ.get('GITHUB_SHA', 'N/A')}")
+        shell: python
+      
+      - name: "🐚 Command Prompt Example"
+        run: echo Running in CMD
+        shell: cmd
+        if: runner.os == 'Windows'
+      
+      # STEP 8: Using Expressions and Functions
+      - name: "🧮 Expressions and Functions"
+        run: |
+          echo "=== EXPRESSIONS AND FUNCTIONS ==="
+          
+          # CONTAINS
+          echo "Contains 'main': ${{ contains(github.ref, 'main') }}"
+          
+          # STARTSWITH / ENDSWITH
+          echo "Starts with 'refs/': ${{ startsWith(github.ref, 'refs/') }}"
+          echo "Ends with 'main': ${{ endsWith(github.ref, 'main') }}"
+          
+          # FORMAT
+          echo "Formatted: ${{ format('Hello {0} {1}!', 'GitHub', 'Actions') }}"
+          
+          # JOIN
+          echo "Joined: ${{ join(github.event.commits.*.message, ', ') }}"
+          
+          # TOJSON / FROMJSON
+          echo "JSON: ${{ toJSON(github.event) }}"
+          
+          # HASHFILES
+          echo "Hash: ${{ hashFiles('**/*.json') }}"
+          
+          # SUCCESS / FAILURE / CANCELLED / ALWAYS
+          echo "Status functions demonstrated in 'if' conditions"
+          
+          # GITHUB / ENV / VARS / SECRETS / RUNNER / JOB / STEPS / MATRIX / INPUTS
+          echo "Context objects accessible throughout workflow"
+        if: success()
+
+  # ==========================================================================
+  # JOB 2: BUILD (Matrix Strategy Example)
+  # ==========================================================================
+  build:
+    name: "Build on ${{ matrix.os }} with Node ${{ matrix.node }}"
+    
+    # JOB DEPENDENCIES
+    # This job runs after 'setup' job completes successfully
+    needs: [setup]
+    
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [18, 20]
+        include:
+          - os: ubuntu-latest
+            node: 20
+            artifact-name: linux-build
+          - os: windows-latest
+            node: 20
+            artifact-name: windows-build
+          - os: macos-latest
+            node: 20
+            artifact-name: macos-build
+      fail-fast: false
+      max-parallel: 3
+    
+    # Use outputs from previous job
+    env:
+      BUILD_ID: ${{ needs.setup.outputs.build-id }}
+      TIMESTAMP: ${{ needs.setup.outputs.timestamp }}
+    
+    timeout-minutes: 45
+    
+    outputs:
+      build-id: ${{ steps.build.outputs.id }}
+      artifact-path: ${{ steps.build.outputs.path }}
+    
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+      
+      - name: "⚙️ Setup Node.js ${{ matrix.node }}"
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: "📦 Install Dependencies"
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: "🔨 Build"
+        id: build
+        run: |
+          npm run build
+          echo "id=${{ needs.setup.outputs.build-id }}" >> $GITHUB_OUTPUT
+          echo "path=./dist" >> $GITHUB_OUTPUT
+      
+      - name: "📤 Upload Build Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name || format('build-{0}-{1}', matrix.os, matrix.node) }}
+          path: |
+            dist/
+            build/
+            *.log
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+      
+      - name: "📊 Build Summary"
+        run: |
+          echo "### Build Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS**: ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Node**: ${{ matrix.node }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build ID**: ${{ needs.setup.outputs.build-id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: ${{ needs.setup.outputs.timestamp }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          echo '${{ toJSON(matrix) }}' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # JOB 3: TEST (Multiple Test Suites)
+  # ==========================================================================
+  test:
+    name: "🧪 Test Suite"
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    
+    # JOB ENVIRONMENT
+    # Uses GitHub Environments for deployment protection rules
+    environment:
+      name: testing
+      url: https://test.example.com
+    
+    strategy:
+      matrix:
+        test-type: [unit, integration, e2e]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: "⚙️ Setup Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: "📥 Download Build Artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: ./dist
+      
+      - name: "🧪 Run ${{ matrix.test-type }} Tests"
+        run: |
+          case "${{ matrix.test-type }}" in
+            unit)
+              echo "Running unit tests..."
+              npm run test:unit
+              ;;
+            integration)
+              echo "Running integration tests..."
+              npm run test:integration
+              ;;
+            e2e)
+              echo "Running e2e tests..."
+              npm run test:e2e
+              ;;
+          esac
+        continue-on-error: ${{ matrix.test-type == 'e2e' }}
+      
+      - name: "📊 Upload Test Results"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.test-type }}
+          path: |
+            test-results/
+            coverage/
+          retention-days: 14
+      
+      - name: "📈 Upload Coverage to Codecov"
+        uses: codecov/codecov-action@v4
+        if: matrix.test-type == 'unit'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true
+
+  # ==========================================================================
+  # JOB 4: SECURITY SCANNING
+  # ==========================================================================
+  security:
+    name: "🔒 Security Scanning"
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    permissions:
+      security-events: write
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: "🔍 Run Dependency Review"
+        uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request'
+      
+      - name: "🛡️ Initialize CodeQL"
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, python
+          queries: security-and-quality
+      
+      - name: "🔨 Autobuild"
+        uses: github/codeql-action/autobuild@v3
+      
+      - name: "🔍 Perform CodeQL Analysis"
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+      
+      - name: "🔐 Run Trivy Vulnerability Scanner"
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: "📤 Upload Trivy Results to GitHub Security"
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ==========================================================================
+  # JOB 5: DOCKER BUILD & PUSH
+  # ==========================================================================
+  docker:
+    name: "🐳 Docker Build and Push"
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: "🔧 Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+      
+      - name: "🔐 Log in to Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: "🔐 Log in to GitHub Container Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: "📝 Extract Metadata"
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ github.repository }}
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: "🏗️ Build and Push Docker Image"
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_ID=${{ needs.setup.outputs.build-id }}
+            VERSION=${{ github.ref_name }}
+
+  # ==========================================================================
+  # JOB 6: DEPLOYMENT
+  # ==========================================================================
+  deploy:
+    name: "🚀 Deploy to ${{ matrix.environment }}"
+    needs: [build, test, security, docker]
+    if: needs.setup.outputs.should-deploy == 'true'
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        environment: [staging, production]
+        exclude:
+          - environment: production
+    
+    environment:
+      name: ${{ matrix.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    
+    concurrency:
+      group: deploy-${{ matrix.environment }}
+      cancel-in-progress: false
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: "📥 Download Artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+      
+      - name: "🚀 Deploy Application"
+        id: deploy
+        run: |
+          echo "Deploying to ${{ matrix.environment }}..."
+          # Deployment logic here
+          echo "url=https://${{ matrix.environment }}.example.com" >> $GITHUB_OUTPUT
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_TARGET: ${{ matrix.environment }}
+      
+      - name: "✅ Deployment Success Notification"
+        if: success()
+        run: |
+          echo "::notice::Deployment to ${{ matrix.environment }} succeeded!"
+
+  # ==========================================================================
+  # JOB 7: CONDITIONAL JOB EXAMPLES
+  # ==========================================================================
+  conditional-jobs:
+    name: "🔀 Conditional Execution Examples"
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "✅ Always Runs"
+        if: always()
+        run: echo "This runs regardless of previous step/job status"
+      
+      - name: "✅ Only on Success"
+        if: success()
+        run: echo "This runs only if all previous steps succeeded"
+      
+      - name: "❌ Only on Failure"
+        if: failure()
+        run: echo "This runs only if a previous step failed"
+      
+      - name: "🚫 Only on Cancellation"
+        if: cancelled()
+        run: echo "This runs only if the workflow was cancelled"
+      
+      - name: "🔍 Complex Condition"
+        if: |
+          success() &&
+          github.ref == 'refs/heads/main' &&
+          github.event_name == 'push' &&
+          !contains(github.event.head_commit.message, '[skip ci]')
+        run: echo "Complex conditions met!"
+      
+      - name: "📊 Check Context Values"
+        if: |
+          contains(fromJSON('["push", "pull_request"]'), github.event_name) &&
+          (startsWith(github.ref, 'refs/heads/feature/') || github.ref == 'refs/heads/main')
+        run: echo "Event and ref conditions met"
+
+  # ==========================================================================
+  # JOB 8: COMPOSITE ACTIONS & REUSABLE WORKFLOWS
+  # ==========================================================================
+  reusable-components:
+    name: "♻️ Reusable Components Demo"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Using a composite action (example)
+      - name: "🔧 Use Composite Action"
+        uses: ./.github/actions/setup-environment
+        if: false  # Disabled as action doesn't exist in this demo
+        with:
+          node-version: '20'
+          python-version: '3.11'
+      
+      - name: "📝 Demonstrate Workflow Command"
+        run: |
+          # Save state for post-job step
+          echo "MY_STATE=saved_value" >> $GITHUB_STATE
+          
+          # Create an annotation
+          echo "::notice file=app.js,line=1,col=5::This is a notice"
+          
+          # Set output using environment file
+          echo "result=success" >> $GITHUB_OUTPUT
+
+  # ==========================================================================
+  # JOB 9: CACHING STRATEGIES
+  # ==========================================================================
+  caching-demo:
+    name: "💾 Caching Strategies"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: "💾 Cache Node Modules"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: "💾 Cache Multiple Paths"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache
+            ~/. local/share
+            vendor/bundle
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+            ${{ runner.os }}-
+      
+      - name: "💾 Save Cache on Failure"
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ~/.cache
+          key: cache-${{ github.run_id }}-${{ github.run_attempt }}
+
+  # ==========================================================================
+  # JOB 10: GITHUB SCRIPT & API INTERACTIONS
+  # ==========================================================================
+  github-api:
+    name: "🔧 GitHub API Interactions"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "📝 Create Issue Comment"
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '👋 Thanks for the PR! CI checks are running.'
+            })
+      
+      - name: "🏷️ Add Labels"
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['automated', 'needs-review']
+            })
+
+  # ==========================================================================
+  # JOB 11: MATRIX WITH DYNAMIC CONFIGURATION
+  # ==========================================================================
+  dynamic-matrix:
+    name: "🔢 Dynamic Matrix Configuration"
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix-config) }}
+    
+    steps:
+      - name: "📊 Display Matrix Config"
+        run: |
+          echo "OS: ${{ matrix.os }}"
+          echo "Version: ${{ matrix.version }}"
+
+  # ==========================================================================
+  # JOB 12: ARTIFACT MANAGEMENT
+  # ==========================================================================
+  artifacts:
+    name: "📦 Artifact Management"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: "📝 Create Test Files"
+        run: |
+          mkdir -p artifacts/{logs,reports,binaries}
+          echo "Log content" > artifacts/logs/app.log
+          echo "Report content" > artifacts/reports/test-report.html
+          echo "Binary content" > artifacts/binaries/app.bin
+      
+      - name: "📤 Upload Multiple Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-artifacts
+          path: artifacts/
+      
+      - name: "📤 Upload Specific Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-only
+          path: artifacts/logs/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ==========================================================================
+  # JOB 13: DOWNLOAD AND PROCESS ARTIFACTS
+  # ==========================================================================
+  process-artifacts:
+    name: "⬇️ Download and Process Artifacts"
+    needs: artifacts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "📥 Download All Artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts/
+      
+      - name: "📥 Download Specific Artifact"
+        uses: actions/download-artifact@v4
+        with:
+          name: logs-only
+          path: logs/
+      
+      - name: "🔍 Process Downloaded Files"
+        run: |
+          echo "Downloaded files:"
+          find downloaded-artifacts -type f
+
+  # ==========================================================================
+  # JOB 14: GITHUB CONTEXT EXPLORATION
+  # ==========================================================================
+  context-demo:
+    name: "🔍 Context Exploration"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "🌐 GitHub Context"
+        run: echo '${{ toJSON(github) }}'
+      
+      - name: "🏃 Runner Context"
+        run: echo '${{ toJSON(runner) }}'
+      
+      - name: "💼 Job Context"
+        run: echo '${{ toJSON(job) }}'
+      
+      - name: "📝 Env Context"
+        run: echo '${{ toJSON(env) }}'
+      
+      - name: "🔐 Secrets (Not Displayed)"
+        run: echo "Secrets are available but not displayed for security"
+      
+      - name: "🔢 Strategy Context"
+        run: echo '${{ toJSON(strategy) }}'
+      
+      - name: "📊 Matrix Context"
+        run: echo '${{ toJSON(matrix) }}'
+        if: false  # No matrix in this job
+
+  # ==========================================================================
+  # JOB 15: CLEANUP & NOTIFICATIONS
+  # ==========================================================================
+  cleanup:
+    name: "🧹 Cleanup & Notifications"
+    needs: [deploy, test, security]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "🧹 Cleanup Resources"
+        run: |
+          echo "Performing cleanup..."
+          # Cleanup logic
+      
+      - name: "📧 Send Slack Notification"
+        uses: slackapi/slack-github-action@v1
+        if: always()
+        with:
+          payload: |
+            {
+              "text": "Workflow ${{ github.workflow }} completed with status: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Workflow*: ${{ github.workflow }}\n*Status*: ${{ job.status }}\n*Actor*: ${{ github.actor }}\n*Ref*: ${{ github.ref }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      
+      - name: "📊 Final Summary"
+        run: |
+          echo "## Workflow Summary 📊" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+# ============================================================================
+# END OF COMPREHENSIVE GITHUB ACTIONS WORKFLOW
+# ============================================================================
+# 
+# This workflow demonstrates:
+# ✅ All trigger events (push, pull_request, schedule, etc.)
+# ✅ Workflow-level and job-level configurations
+# ✅ Permissions management
+# ✅ Environment variables and defaults
+# ✅ Concurrency control
+# ✅ Matrix strategies (static and dynamic)
+# ✅ Job dependencies and outputs
+# ✅ Container and service containers
+# ✅ Conditional execution (if conditions)
+# ✅ Timeout configurations
+# ✅ Multiple runner operating systems
+# ✅ Step actions and run commands
+# ✅ All shell types (bash, pwsh, python, cmd)
+# ✅ Artifact upload and download
+# ✅ Caching strategies
+# ✅ GitHub Script and API interactions
+# ✅ Expressions and functions
+# ✅ Context objects (github, runner, job, env, etc.)
+# ✅ Workflow commands (set-output, add-mask, etc.)
+# ✅ Step summaries and annotations
+# ✅ Security scanning and code analysis
+# ✅ Docker builds and registry pushes
+# ✅ Deployment with environments
+# ✅ Notifications and cleanup
+# ✅ Reusable workflows and composite actions
+# 
+# For more information, visit:
+# https://docs.github.com/en/actions
+# ============================================================================
